@@ -9,43 +9,55 @@
 
 #define CNT 2
 
+typedef struct {    
+    int n;  //number of process
+    int data; 
+    //нужно ли еще одно поле работает или нет?       
+} dataStr;
+
+
+
+
+
+
+
+
+
 int main()
 {
-  int *array;
+  srand(time(NULL));
+  int i,j,k;  
+  key_t key;  
   int shmid;
-  char pathname[] = "POSIX8.c";
-  key_t key;
-  if((key = ftok(pathname,0)) < 0){
+  pid_t pid;  
+  info *p; //shared vaiable array?
+  unsigned int val_sem; //semaphore value
+  
+  if((key = ftok("POSIX8.c",0/**/)) < 0){  //4?
       printf("Can\'t generate key\n");
       exit(EXIT_FAILURE);
   }
   
-  shmid = shmget(key, CNT*sizeof(int),0666|IPC_CREAT|IPC_EXCL);
+  shmid = shmget(key, CNT*sizeof(info),0644|IPC_CREAT);
   if(shmid < 0)
     exit(EXIT_FAILURE);
   
-  if((array = (int *)shmat(shmid, NULL, 0)) == (int *)(-1)){
-    printf("Can't attach shared memory\n");
-    exit(EXIT_FAILURE);
-  }  
+  p = (info *)shmat(shmid, NULL, 0);    
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-  pid_t pid;
-  int rv;
-  int i;
-  for (i = 0; i < CNT; ++i){
+  for(i = 0; i < CNT; ++i){
+    p[i].n = 0;
+    p[i].data = 0;
+  }
+
+  p[0].data = 1; //???  
+      
+  for (i = 1; i < CNT; ++i){  //change, i=0
     pid = fork();  
-    if (pid < 0)
+    if (pid < 0){
+        //sem_unlick("pSem");
+        //sem_close(sem);        
         exit(EXIT_FAILURE);
+    }
     else
         if(pid == 0)
             break;    
