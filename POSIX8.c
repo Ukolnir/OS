@@ -17,7 +17,7 @@
 #include <fcntl.h>          
 
 #define SEM_NAME "POSIX8sem"
-#define CNT 2
+#define CNT 7  //Количество процессов
 
 
 int my_random(){
@@ -28,55 +28,41 @@ int my_random(){
 typedef struct {
     int num; //переданное число 
     int get; //число получено       
-} dataStr;   //info
+} dataStr;   
   
-/*---------------------PART 2-----------------------------------------------*/
-//первый процесс генерирует последовательность случайных чисел, 
-//которые передаёт по одному второму процессу
-void first(dataStr* p, sem_t* sem){
+void parent(dataStr* p, sem_t* sem){
     sem_wait (sem);
-    //Установка нового числа 0-му процессу
+    
     p[0].num = my_random();
-    //printf("p.num = %d\n", p[0].num);
-    p[0].get = 0;
+    printf("p.num = %d\n", p[0].num);
         
-    //Транслирование числа 1-му процессу
+    //Запуск второго процесса
     p[1].num = p[0].num + 1;    
     p[1].get = 1;
-    sem_post (sem); 
+    sem_post (sem);
     return;
-//Сделать условие для проверки получил значение первый процесс или сгенерировал его?      
 }
 
-//Второй процесс увеличивает каждое получаемое число на 1 
-//и передаёт дальше. 
-void others_p(dataStr* p, int i, sem_t* sem){
-    sem_wait (sem);
-    //Работа с процессами, у которых индекс от 1 до n-2 включительно
+void child(dataStr* p, int i, sem_t* sem){
+    while(1)  //Ждем сигнала, когда процесс получит число
+        if (p[i].get==1)
+            break;
+    sem_wait (sem);    
+    
     if (i != CNT-1){
-    //Говорим следующему процессу, что он может начинать работать
-    p[i+1].num = p[i].num + 1;
-    p[i+1].get = 1;                
+        p[i+1].num = p[i].num + 1;
+        p[i+1].get = 1; //Сигнализируем следующему процессу, что он скоро начнет работу               
     }
     else{
-     //Показываем, что текущий процесс может принимать следующее число
-     p[0].num = p[i].num+1;
-     p[0].get = 1;
+        p[0].num = p[i].num+1;
+        p[0].get = 1;
     }
-    //sem_post (sem); 
-    //return;
+    printf ("  Child(%d) new value of p.num = %d.\n", i, p[i].num);
    sem_post (sem); 
-   //return ;
+   return;
 }
 
-
-
-//Выводим индекс текущего процесса и число
-  //                  printf ("  Child(%d) new value of p.num = %d.\n", i, p[i].num);
                 
-/*----------------------------END PART 2 ---------------------------*/
-
-
 int main()
 {
   srand(time(NULL));
@@ -103,18 +89,15 @@ int main()
     p[i].get = 0;
   }
 
-   //очистка семафора из ядра; закрытие семафора
     sem_unlink ("pSem");
     sem_close(sem);
     val_sem = 1;
-
-    
     sem = sem_open("pSem", O_CREAT | O_EXCL, 0644, val_sem);
       
   for (i = 0; i < CNT; ++i){  
     pid = fork();  
     if (pid < 0){
-        sem_unlick("pSem");
+        sem_unlink("pSem");
         sem_close(sem);
         printf ("Fork error.\n");        
         exit(EXIT_FAILURE);
@@ -124,31 +107,27 @@ int main()
             break;    
   }
 
-    /******************   PARENT PROCESS   ****************/
+    /*-------------   PARENT PROCESS   ---------------*/
     if (pid != 0){
-        
-        first(p, sem);
+        parent(p, sem);
         while (pid = waitpid (-1, NULL, 0)){
             if (errno == ECHILD)
                 break;
         }
-        printf ("\nParent: All children have exited.\n");
+        
+        printf("result: p[0].num = %d\n",p[0].num);
+        //printf ("\nParent: All children have exited.\n");
 
-        /* shared memory detach */
         shmdt (p);
         shmctl (shmid, IPC_RMID, 0);
-        
-        /* cleanup semaphores */
         sem_unlink ("pSem");
         sem_close(sem);
-        /* unlink prevents the semaphore existing forever */
-        /* if a crash occurs during the execution         */
-        exit (0);
+        exit (EXIT_SUCCESS);
     }
     
-    /******************   CHILD PROCESS   *****************/
+    /*--------------   CHILD PROCESS   ---------------*/
     else{
-        others_p(p, i, sem);
-        exit (0);
+        child(p, i, sem);
+        exit (EXIT_SUCCESS);
     }
 }
