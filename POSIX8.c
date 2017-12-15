@@ -108,7 +108,7 @@ int main()
   }
 
     /*-------------   PARENT PROCESS   ---------------*/
-    if (pid != 0){
+     if (pid != 0){
         parent(p, sem);
         while (pid = waitpid (-1, NULL, 0)){
             if (errno == ECHILD)
