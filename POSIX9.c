@@ -104,17 +104,29 @@ int main(){
         sem_close(sem);
         exit (EXIT_SUCCESS);
     }    
+
     else{
         printf("Child works \n");
-        char str1[3];
+        char str1[3][20];
         size_t l;
         sem_wait(sem);
         for(int i = 0; i<3; ++i){
             read(fd1[0],&l,sizeof(size_t));
             printf("Read len: %d \n",l);
             read(fd1[0],&str1[i], l*sizeof(char));
-            printf("Read str1[%d] \n",i);       
+                        
+            for(int j = 0; j < l; ++j)
+                putchar(str1[i][j]);
+            printf("\n"); 
         }
+
+        char buf[128];
+        for(int i = 0; i < 128; ++i){
+            buf[i] = ' ';        
+        }
+        str_replace(buf, sizeof(buf)-1, str1[0], str1[1], str1[2]);
+        puts(buf);
+        
         close(fd1[1]);
         
         sem_post(sem);
